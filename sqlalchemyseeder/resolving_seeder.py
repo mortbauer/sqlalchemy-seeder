@@ -4,14 +4,31 @@ import json
 from collections import defaultdict, namedtuple
 
 import jsonschema
-import pkg_resources
-import yaml
+import importlib
+from ruamel.yaml import YAML
 from sqlalchemyseeder.exceptions import AmbiguousReferenceError, UnresolvedReferencesError, EntityBuildError
 from sqlalchemy import inspect as sainsp
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.orm.exc import MultipleResultsFound
 
 VALIDATION_SCHEMA_RSC = 'resources/resolver.schema.json'
+
+yaml = YAML(typ='safe')
+
+def rec_getattr(obj,attrname):
+    if '.' in attrname:
+        name,rest = attrname.split('.',1)
+        return rec_getattr(getattr(obj,name),rest)
+    else:
+        return getattr(obj,attrname)
+
+def pyobject_constructor(loader, node):
+    value = loader.construct_scalar(node)
+    module_name, attr_name = value.rsplit(':', 1)
+    module = importlib.import_module(module_name)
+    return rec_getattr(module, attr_name)
+
+yaml.constructor.add_constructor('!pyobject', pyobject_constructor)
 
 
 def _is_mappable_class(cls):
@@ -136,7 +153,8 @@ class ResolvingSeeder(object):
 
     def __init__(self, session):
         self.session = session
-        schema_string = pkg_resources.resource_string('sqlalchemyseeder', VALIDATION_SCHEMA_RSC)
+        with (importlib.resources.files("sqlalchemyseeder") / VALIDATION_SCHEMA_RSC ).open('r') as _f:
+            schema_string = _f.read()
         self.validation_schema = json.loads(schema_string)
         self.registry = ClassRegistry()
 

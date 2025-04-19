@@ -18,7 +18,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3'
     ],
-    install_requires=['SQLAlchemy', 'jsonschema', 'pyyaml'],
+    install_requires=['SQLAlchemy', 'jsonschema', 'ruamel.yaml'],
     tests_require=["pytest"],
     python_requires='>=3.4'
 )
