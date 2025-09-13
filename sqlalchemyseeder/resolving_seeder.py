@@ -275,11 +275,14 @@ class _ReferenceResolver(object):
                 if builder.resolve():
                     resolved_builders.append(builder)
             for resolved_builder in resolved_builders:
+                # import IPython
+                # IPython.embed()
+                # break
                 entity = resolved_builder.build()
-                self.session.add(entity)
+                merged_entity = self.session.merge(entity)
                 if self.flush_on_create:
                     self.session.flush()
-                entities.append(entity)
+                entities.append(merged_entity)
                 entity_builders.remove(resolved_builder)
             if previous_builder_count == len(entity_builders):  # No progress being made
                 raise UnresolvedReferencesError(
@@ -323,7 +326,18 @@ class _EntityBuilder(object):
         if self.built:
             raise EntityBuildError("Entity Builder has already been used.")
         self.built = True
-        return self.target_cls(**self.data_dict)
+        obj = self.get_by_unique_columns()
+        if obj is None:
+            obj = self.target_cls(**self.data_dict)
+        return obj
+
+    def get_by_unique_columns(self):
+        filters = {}
+        for col in self.target_cls.__table__.columns:
+            if (col.unique or col.primary_key) and col.name in self.data_dict:
+                filters[col.name] = self.data_dict[col.name]
+        obj = self.session.query(self.target_cls).filter_by(**filters).one_or_none()
+        return obj
 
     def resolve(self):
         """ Return True if fully resolved, False otherwise. """
