@@ -332,11 +332,13 @@ class _EntityBuilder(object):
         return obj
 
     def get_by_unique_columns(self):
+        obj = None
         filters = {}
         for col in self.target_cls.__table__.columns:
             if (col.unique or col.primary_key) and col.name in self.data_dict:
                 filters[col.name] = self.data_dict[col.name]
-        obj = self.session.query(self.target_cls).filter_by(**filters).one_or_none()
+        if filters:
+            obj = self.session.query(self.target_cls).filter_by(**filters).one_or_none()
         return obj
 
     def resolve(self):
