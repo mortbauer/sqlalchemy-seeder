@@ -275,11 +275,11 @@ class _ReferenceResolver(object):
                 if builder.resolve():
                     resolved_builders.append(builder)
             for resolved_builder in resolved_builders:
-                # import IPython
-                # IPython.embed()
-                # break
-                entity = resolved_builder.build()
-                merged_entity = self.session.merge(entity)
+                entity,is_new = resolved_builder.build()
+                if is_new:
+                    merged_entity = self.session.add(entity)
+                else:
+                    merged_entity = self.session.merge(entity)
                 if self.flush_on_create:
                     self.session.flush()
                 entities.append(merged_entity)
@@ -321,6 +321,7 @@ class _EntityBuilder(object):
         return len(self.refs) == 0
 
     def build(self):
+        is_new = False
         if not self.resolved:
             raise UnresolvedReferencesError("Entity Builder has unresolved references.")
         if self.built:
@@ -328,8 +329,12 @@ class _EntityBuilder(object):
         self.built = True
         obj = self.get_by_unique_columns()
         if obj is None:
+            is_new = True
             obj = self.target_cls(**self.data_dict)
-        return obj
+        else:
+            for key,val in self.data_dict.items():
+                setattr(obj,key,val)
+        return obj,is_new
 
     def get_by_unique_columns(self):
         obj = None
